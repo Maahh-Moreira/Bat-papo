@@ -1,0 +1,33 @@
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-in {
+  animation: fadeIn var(--duration) var(--ease);
+}
+
+.boot-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg-deep); gap: 16px;
+  transition: opacity 0.35s var(--ease);
+}
+.boot-screen.hide { opacity: 0; pointer-events: none; }
+.boot-title {
+  font-size: 1.25rem; font-weight: 600; letter-spacing: 0.12em;
+  color: var(--text-primary); margin-top: 12px;
+}
+.boot-slogan { font-size: var(--text-sm); color: var(--text-muted); }
+.boot-loader {
+  width: 120px; height: 2px; background: var(--bg-surface);
+  border-radius: 99px; overflow: hidden; margin-top: 8px;
+}
+.boot-bar {
+  height: 100%; width: 40%; background: var(--accent);
+  animation: bootLoad 1.2s ease-in-out infinite;
+}
+@keyframes bootLoad {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+.boot-bat { width: 48px; height: 48px; opacity: 0.9; }
