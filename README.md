@@ -1,20 +1,8 @@
-# BATPAPO 🦇
+# BATPAPO
 
-**Seu papo. Sua toca. Sua galera.**
+**Seu papo. Sua toca.**
 
 Plataforma de comunicação social com identidade própria — inspirada na experiência de apps de mensagens e comunidades, com visual e personalidade únicos.
-
-## Como executar
-
-```bash
-cd batpapo-app
-python3 -m http.server 8765
-# Abra http://localhost:8765
-```
-
-Ou qualquer servidor estático (Live Server, `npx serve`, etc.).
-
-> **Importante:** precisa ser servido via HTTP (não `file://`) por causa dos ES modules.
 
 ## Conta demo
 
@@ -25,7 +13,7 @@ Outros usuários demo: `marcos`, `lucas`, `ana`, `rafa` (mesma senha).
 
 ## Funcionalidades
 
-- Landing page com mascote Bati
+- Landing page com mascote Bananinha
 - Cadastro e login (localStorage)
 - BAT-ID único por usuário
 - Dashboard com cards de resumo

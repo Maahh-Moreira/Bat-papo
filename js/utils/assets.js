@@ -1,23 +1,22 @@
 /**
- * Assets centrais — troque os caminhos abaixo para mudar o sistema todo.
- * Deixe null / string vazia para placeholder vazio (sem desenho gerado).
+ * Assets centrais — troque os caminhos para mudar o sistema todo.
  *
- * Coloque seus arquivos em /assets/ e aponte os caminhos aqui.
+ * Coloque os arquivos em /assets/ e use caminho RELATIVO (sem / no início):
+ *   logo: 'assets/bat.png'
+ *   mascot: 'assets/batt.jpg'
+ *
+ * null = não mostra imagem naquele ponto.
  */
 export const ASSETS = {
-  /** Logo pequeno (sidebar, auth) — ex: '/assets/logo.png' */
-  logo: null,
-  /** Mascote grande (landing, empty states) — ex: '/assets/mascot.png' */
-  mascot: null,
-  /** Favicon já em /assets/icons/favicon.svg */
-  favicon: '/assets/icons/favicon.svg',
+  logo: 'assets/bat.png',
+  mascot: 'assets/bat-mascot.png',
+  favicon: 'assets/bat.png',
 };
 
-/** Placeholder vazio: só um bloco neutro, sem círculo decorativo */
 export function assetSlot({ src = null, size = 48, label = '', className = '' } = {}) {
   const s = typeof size === 'number' ? `${size}px` : size;
   if (src) {
-    return `<img class="asset-img ${className}" src="${src}" alt="${label || ''}" style="width:${s};height:${s};object-fit:contain;display:block;background:transparent" />`;
+    return `<img class="asset-img ${className}" src="${src}" alt="${label || ''}" style="width:${s};height:auto;max-height:${s};object-fit:contain;display:block;background:transparent;border:none" />`;
   }
   return `<span class="asset-slot ${className}" style="width:${s};height:${s}" aria-hidden="true"></span>`;
 }

@@ -29,6 +29,14 @@ let convSearchQuery = '';
 /** Draft for profile lab — only persisted on Save */
 let profileDraft = null;
 
+function isAnimatedImage(file) {
+  if (!file) return false;
+  const t = (file.type || '').toLowerCase();
+  if (t === 'image/gif' || t === 'image/webp') return true;
+  const name = (file.name || '').toLowerCase();
+  return name.endsWith('.gif') || name.endsWith('.webp');
+}
+
 function getProfileDraft() {
   const user = store.getCurrentUser();
   if (!user) return null;
@@ -178,45 +186,75 @@ function handleRoute() {
 
 function renderLanding() {
   return `<div class="landing">
-    <nav class="landing-nav">
-      <div class="brand">${logoHtml(32)} BATPAPO</div>
+    <header class="landing-header">
+      <div class="brand"><span class="brand-mark">B</span><span class="brand-name">BATPAPO</span></div>
       <div class="nav-actions">
-        <button class="btn btn-ghost" data-go="login">Entrar</button>
-        <button class="btn btn-primary" data-go="register">Criar conta</button>
+        <button type="button" class="btn btn-ghost" data-go="login">Entrar</button>
+        <button type="button" class="btn btn-primary" data-go="register">Criar conta</button>
       </div>
-    </nav>
-    <section class="hero">
-      <div class="hero-text animate-in">
-        <h1>Entre na <span class="highlight">toca</span>.</h1>
-        <p>Converse, compartilhe, crie grupos e transforme seus papos em experiências únicas.</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary btn-lg" data-go="register">Criar conta grátis</button>
-          <button class="btn btn-secondary btn-lg" data-go="login">Já tenho conta</button>
+    </header>
+
+    <section class="landing-hero">
+      <div class="hero-copy">
+        <h1>Entre na toca.</h1>
+        <p class="lead">Converse, compartilhe, crie grupos e transforme seus papos em experiências únicas.</p>
+        <div class="landing-actions">
+          <button type="button" class="btn btn-primary" data-go="register">Criar conta grátis</button>
+          <button type="button" class="btn btn-secondary" data-go="login">Já tenho conta</button>
         </div>
       </div>
-      <div class="hero-visual">${mascotHtml(200)}</div>
+      <div class="hero-visual">${mascotHtml(280)}</div>
     </section>
-    <section class="features">
-      <h2>Feito para sua galera</h2>
-      <p class="subtitle">Tudo que você precisa pra manter o papo rolando.</p>
-      <div class="features-grid">
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>Chats privados</h3><p>Mensagens, áudios, arquivos, stickers e reações. Tudo na sua toca.</p></div>
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>BAT-ID único</h3><p>Adicione amigos pelo código BAT-XXXX-XXX. Simples e seguro.</p></div>
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>Grupos & canais</h3><p>Crie tocas com identidade própria, canais de texto e salas de voz.</p></div>
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>Perfil personalizável</h3><p>Avatar, banner, molduras, badges e cores. Monte seu personagem.</p></div>
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>Temas</h3><p>Bat Dark, Midnight, Vampire, Neon e mais. A toca do seu jeito.</p></div>
-        <div class="feature-card"><div class="feat-icon">${icon('info',18)}</div><h3>Notificações</h3><p>Fique por dentro de mensagens, menções e solicitações de amizade.</p></div>
+
+    <section class="landing-features-wrap">
+      <div class="landing-features-head">
+        <h2>Feito para sua galera</h2>
+        <p>Tudo que você precisa pra manter o papo rolando.</p>
+      </div>
+      <div class="landing-features">
+        <div class="feature-card">
+          <div class="feat-icon">${icon('message',18)}</div>
+          <h3>Chats privados</h3>
+          <p>Mensagens, arquivos, stickers e reações.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">${icon('hash',18)}</div>
+          <h3>BAT-ID único</h3>
+          <p>Adicione amigos pelo código BAT-XXXX-XXX.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">${icon('users',18)}</div>
+          <h3>Grupos e canais</h3>
+          <p>Tocas com canais de texto e identidade própria.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">${icon('user',18)}</div>
+          <h3>Perfil personalizável</h3>
+          <p>Avatar, banner, molduras e cores.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">${icon('moon',18)}</div>
+          <h3>Temas</h3>
+          <p>Escuro, meia-noite, carmesim e mais.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">${icon('bell',18)}</div>
+          <h3>Notificações</h3>
+          <p>Mensagens, menções e pedidos de amizade.</p>
+        </div>
       </div>
     </section>
+
     <footer class="landing-footer">
-      <p>${logoHtml(20)} BATPAPO — Seu papo. Sua toca. Sua galera.</p>
-      <p style="margin-top:8px">© 2026 BATPAPO. Feito com 💜 e 🦇</p>
+      <p>BATPAPO — Seu papo. Sua toca. Sua galera.</p>
+      <p class="footer-copy">© 2026 BATPAPO</p>
     </footer>
   </div>`;
 }
 
 function renderLogin() {
   return `<div class="auth-page"><div class="auth-card animate-in">
+    <button type="button" class="auth-back" data-go="landing" aria-label="Voltar">${icon('chevronLeft',18)} Voltar</button>
     <div class="auth-logo">${logoHtml(56)}<h1>BATPAPO</h1><p>Seu papo. Sua toca. Sua galera.</p></div>
     <div class="auth-mascot" id="login-mascot">${mascotHtml(56)}</div>
     <h2>Entrar na toca</h2>
@@ -236,7 +274,9 @@ function renderLogin() {
 
 function renderRegister() {
   return `<div class="auth-page"><div class="auth-card animate-in">
-    <div class="auth-logo">${logoHtml(48)}<h1>BATPAPO</h1></div>
+    <button type="button" class="auth-back" data-go="landing" aria-label="Voltar">${icon('chevronLeft',18)} Voltar</button>
+    <div class="auth-logo">${logoHtml(56)}<h1>BATPAPO</h1><p>Seu papo. Sua toca. Sua galera.</p></div>
+    <div class="auth-mascot" id="register-mascot">${mascotHtml(56)}</div>
     <h2>Criar sua conta</h2>
     <form id="register-form">
       <div class="input-group"><label class="input-label">Nome de usuário</label>
@@ -886,8 +926,7 @@ function bindEvents() {
     const pw = document.getElementById('login-password');
     const mascot = document.getElementById('login-mascot');
     if (pw && mascot) {
-      pw.onfocus = () => { mascot.innerHTML=mascotHtml(56); };
-      pw.onblur = () => { mascot.innerHTML=mascotHtml(56); };
+
     }
   }
 
@@ -1339,17 +1378,22 @@ function bindEvents() {
       if (!file.type.startsWith('image/')) { toast('Selecione uma imagem', 'warning'); return; }
       if (file.size > 5 * 1024 * 1024) { toast('Imagem muito grande (máx. 5 MB)', 'warning'); return; }
       const dataUrl = await fileToDataUrl(file);
-      openCropper({
-        imageSrc: dataUrl, aspectRatio: 'circle',
-        title: 'Recortar foto',
-        onComplete: (cropped) => {
-          const d = getProfileDraft();
-          d.avatar = cropped;
-          patchFrame(d.frame);
-          markDirty();
-          toast('Preview da foto atualizado — clique em Salvar', 'info');
-        },
-      });
+            const applyAvatar = (src) => {
+        const d = getProfileDraft();
+        d.avatar = src;
+        patchFrame(d.frame);
+        markDirty();
+        toast('Preview da foto atualizado — clique em Salvar', 'info');
+      };
+      if (isAnimatedImage(file)) {
+        applyAvatar(dataUrl);
+      } else {
+        openCropper({
+          imageSrc: dataUrl, aspectRatio: 'circle',
+          title: 'Recortar foto',
+          onComplete: applyAvatar,
+        });
+      }
     });
 
     document.getElementById('lab-banner-btn')?.addEventListener('click', (e) => {
