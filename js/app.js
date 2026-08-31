@@ -160,27 +160,64 @@ function renderAvatar(user, size = 'md', showStatus = true) {
 
 function navigate(path) {
   if (path !== route && !confirmLeaveIfDirty()) return;
-  route = path;
-  showUserMenu = false;
-  render();
-  window.history.replaceState(null, '', '#' + path);
+  const pages = {
+    landing: 'index.html',
+    login: 'login.html',
+    register: 'register.html',
+    home: 'home.html',
+    messages: 'messages.html',
+    chat: 'messages.html',
+    friends: 'friends.html',
+    groups: 'groups.html',
+    profile: 'profile.html',
+    'profile-lab': 'profile.html',
+    notifications: 'notifications.html',
+    'sticker-studio': 'stickers.html',
+    settings: 'settings.html',
+  };
+  const file = pages[path] || 'index.html';
+  // same page? just re-render
+  const current = (location.pathname.split('/').pop() || 'index.html');
+  if (current === file) {
+    route = path;
+    showUserMenu = false;
+    render();
+    return;
+  }
+  location.href = file;
 }
 
 function handleRoute() {
-  const hash = location.hash.slice(1) || 'landing';
-  if (hash !== route && !confirmLeaveIfDirty()) {
-    // revert the URL back to the current (unsaved) route
-    window.history.replaceState(null, '', '#' + route);
+  const file = (location.pathname.split('/').pop() || 'index.html').split('?')[0];
+  const map = {
+    'index.html': 'landing',
+    'login.html': 'login',
+    'register.html': 'register',
+    'home.html': 'home',
+    'messages.html': 'messages',
+    'friends.html': 'friends',
+    'groups.html': 'groups',
+    'profile.html': 'profile-lab',
+    'notifications.html': 'notifications',
+    'stickers.html': 'sticker-studio',
+    'settings.html': 'settings',
+  };
+  const hash = map[file] || 'landing';
+  const user = store.getCurrentUser();
+  const authPages = ['home','messages','chat','friends','groups','profile','profile-lab','settings','notifications','sticker-studio'];
+  const publicPages = ['login','register','landing'];
+  if (authPages.includes(hash) && !user) {
+    location.href = 'login.html';
     return;
   }
-  const user = store.getCurrentUser();
-   if (['dashboard','chat','friends','groups','profile','settings','notifications','home','messages','profile-lab','sticker-studio'].includes(hash) && !user) {
-     route = 'login';
-  } else     if (['login','register','landing'].includes(hash) && user) {
-    route = 'home';
-  } else {
-    route = hash;
+  if (publicPages.includes(hash) && user && hash !== 'landing') {
+    // already logged in visiting login/register -> home
+    if (hash === 'login' || hash === 'register') {
+      location.href = 'home.html';
+      return;
+    }
   }
+  route = hash;
   render();
 }
 
@@ -1559,11 +1596,11 @@ function bindEvents() {
 }
 
 function hideBoot() {
-  const bootEl = document.getElementById('boot-screen');
-  if (bootEl) {
-    bootEl.classList.add('hide');
-    bootEl.style.pointerEvents = 'none';
-    setTimeout(() => { try { bootEl.remove(); } catch (_) {} }, 600);
+  const el = document.getElementById('boot-screen');
+  if (el) {
+    el.classList.add('hide');
+    el.style.display = 'none';
+    el.style.pointerEvents = 'none';
   }
 }
 
@@ -1581,7 +1618,7 @@ function boot() {
     }
   }
 
-  window.addEventListener('hashchange', handleRoute);
+  // multi-page: sem hash
   window.addEventListener('beforeunload', (e) => {
     if (isProfileDraftDirty()) {
       e.preventDefault();
@@ -1606,7 +1643,7 @@ function boot() {
   };
 
   // Small delay so the boot animation is visible, but don't block forever
-  setTimeout(start, 900);
+  start();
 }
 
 boot();
