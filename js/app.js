@@ -1323,23 +1323,26 @@ function bindEvents() {
       <div class="input-group"><input class="input" id="friend-batid" placeholder="BAT-7F29-XQ4" style="text-transform:uppercase;font-family:var(--font-mono)"/></div>`,
       `<button class="btn btn-ghost" id="modal-cancel">Cancelar</button><button class="btn btn-primary" id="modal-confirm-friend">Enviar pedido</button>`);
     document.getElementById('modal-cancel').onclick = closeModal;
-    document.getElementById('modal-confirm-friend').onclick = () => {
-      try { store.sendFriendRequest(document.getElementById('friend-batid').value.trim()); toast('Pedido enviado','success'); closeModal(); render(); }
-      catch(err){ toast(err.message,'error'); }
+    document.getElementById('modal-confirm-friend').onclick = async () => {
+      const btn = document.getElementById('modal-confirm-friend');
+      const batId = document.getElementById('friend-batid')?.value.trim();
+      btn.disabled = true; btn.textContent = 'Enviando...';
+      try { await store.sendFriendRequest(batId); toast('Pedido enviado','success'); closeModal(); render(); }
+      catch(err){ toast(err.message || 'Não foi possível enviar o pedido.', 'error'); btn.disabled = false; btn.textContent = 'Enviar pedido'; }
     };
   };
   document.getElementById('btn-add-friend')?.addEventListener('click', addFriend);
   document.getElementById('btn-add-friend-empty')?.addEventListener('click', addFriend);
-  document.querySelectorAll('[data-accept]').forEach(el => { el.onclick = () => { store.acceptFriendRequest(el.dataset.accept); toast('Amigo adicionado','success'); render(); }; });
-  document.querySelectorAll('[data-decline]').forEach(el => { el.onclick = () => { store.declineFriendRequest(el.dataset.decline); render(); }; });
+  document.querySelectorAll('[data-accept]').forEach(el => { el.onclick = async () => { el.disabled = true; try { await store.acceptFriendRequest(el.dataset.accept); toast('Amigo adicionado','success'); render(); } catch (err) { toast(err.message || 'Não foi possível aceitar.', 'error'); el.disabled = false; } }; });
+  document.querySelectorAll('[data-decline]').forEach(el => { el.onclick = async () => { el.disabled = true; try { await store.declineFriendRequest(el.dataset.decline); render(); } catch (err) { toast(err.message || 'Não foi possível recusar.', 'error'); el.disabled = false; } }; });
   document.querySelectorAll('[data-remove-friend]').forEach(el => {
-    el.onclick = (e) => {
+    el.onclick = async (e) => {
       e.stopPropagation();
       const friend = store.getUser(el.dataset.removeFriend);
       if (confirm(`Remover ${friend?.displayName||'amigo'} da sua lista de amigos?`)) {
-        store.removeFriend(el.dataset.removeFriend);
-        toast('Amigo removido', 'info');
-        render();
+        el.disabled = true;
+        try { await store.removeFriend(el.dataset.removeFriend); toast('Amigo removido', 'info'); render(); }
+        catch (err) { toast(err.message || 'Não foi possível remover o amigo.', 'error'); el.disabled = false; }
       }
     };
   });

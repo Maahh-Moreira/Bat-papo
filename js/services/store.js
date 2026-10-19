@@ -47,7 +47,8 @@ export async function initStore() {
       user.theme = settings.theme || 'dark';
       state.settings[user.id] = { theme: user.theme, notifications: settings.notifications_enabled, sound: settings.sound_enabled };
     }
-    // Carrega os grupos dos quais a conta realmente participa no Supabase.
+    // Carrega os dados sociais reais da conta no Supabase.
+    await loadRemoteFriends(user.id);
     await loadRemoteGroups(user.id);
   }
   supabase.auth.onAuthStateChange((_event, sessionNow) => {
@@ -59,6 +60,37 @@ export async function initStore() {
     }
   });
   return state;
+}
+
+
+async function loadRemoteFriends(userId) {
+  const [{ data: requests, error: requestsError }, { data: friendships, error: friendshipsError }] = await Promise.all([
+    supabase.from('friend_requests').select('id, sender_id, receiver_id, status, created_at').or(`sender_id.eq.${userId},receiver_id.eq.${userId}`),
+    supabase.from('friendships').select('user_low, user_high').or(`user_low.eq.${userId},user_high.eq.${userId}`)
+  ]);
+  if (requestsError) throw new Error(`Não foi possível carregar as solicitações de amizade: ${requestsError.message}`);
+  if (friendshipsError) throw new Error(`Não foi possível carregar seus amigos: ${friendshipsError.message}`);
+
+  state.friendRequests = (requests || []).map(r => ({
+    id: r.id, fromId: r.sender_id, toId: r.receiver_id, status: r.status,
+    createdAt: new Date(r.created_at).getTime()
+  }));
+  state.friends[userId] = [];
+  for (const f of friendships || []) {
+    const friendId = f.user_low === userId ? f.user_high : f.user_low;
+    state.friends[userId].push(friendId);
+  }
+  const profileIds = new Set();
+  for (const id of state.friends[userId]) profileIds.add(id);
+  for (const r of state.friendRequests) {
+    if (r.fromId === userId) profileIds.add(r.toId);
+    if (r.toId === userId) profileIds.add(r.fromId);
+  }
+  if (profileIds.size) {
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*').in('id', [...profileIds]);
+    if (profilesError) throw new Error(`Não foi possível carregar os perfis dos amigos: ${profilesError.message}`);
+    for (const profile of profiles || []) state.users[profile.id] = profileToUser(profile);
+  }
 }
 
 async function loadRemoteGroups(userId) {
@@ -153,6 +185,8 @@ export async function register({ username, displayName, email, password }) {
   state.currentUserId = user.id;
   state.friends[user.id] = [];
   state.settings[user.id] = { theme: 'dark', notifications: true, sound: true };
+  await loadRemoteFriends(user.id);
+  await loadRemoteGroups(user.id);
   notify();
   return user;
 }
@@ -174,6 +208,8 @@ export async function login(identifier, password) {
     user.theme = settings.theme || 'dark';
     state.settings[user.id] = { theme: user.theme, notifications: settings.notifications_enabled, sound: settings.sound_enabled };
   }
+  await loadRemoteFriends(user.id);
+  await loadRemoteGroups(user.id);
   notify();
   return user;
 }
@@ -232,79 +268,65 @@ export async function updateProfile(updates) {
   return user;
 }
 
-// ─── Friends ────────────────────────────────────────
+// ─── Friends (persistidos no Supabase) ───────────────
 
-export function sendFriendRequest(batId) {
+export async function sendFriendRequest(batId) {
   const me = getCurrentUser();
-  const target = Object.values(state.users).find(u => u.batId === batId.toUpperCase());
-  if (!target) throw new Error('BAT-ID não encontrado');
-  if (target.id === me.id) throw new Error('Você não pode adicionar a si mesmo');
-  if ((state.friends[me.id] || []).includes(target.id)) throw new Error('Já são amigos');
-  if (state.friendRequests.some(r => r.fromId === me.id && r.toId === target.id && r.status === 'pending')) {
-    throw new Error('Solicitação já enviada');
-  }
+  const normalizedBatId = String(batId || '').trim().toUpperCase();
+  if (!me) throw new Error('Você precisa estar conectado.');
+  if (!normalizedBatId) throw new Error('Digite o BAT-ID da pessoa.');
 
-  const req = {
-    id: uid('req'),
-    fromId: me.id,
-    toId: target.id,
-    status: 'pending',
-    createdAt: Date.now(),
-  };
+  const { data, error } = await supabase.rpc('send_friend_request_by_bat_id', { p_bat_id: normalizedBatId });
+  if (error) throw new Error(error.message || 'Não foi possível enviar a solicitação.');
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.request_id || !row?.receiver_id) throw new Error('O Supabase não confirmou a solicitação de amizade.');
+
+  const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', row.receiver_id).single();
+  if (profileError) throw new Error(`Solicitação enviada, mas não foi possível carregar o perfil: ${profileError.message}`);
+  state.users[profile.id] = profileToUser(profile);
+  const req = { id: row.request_id, fromId: me.id, toId: row.receiver_id, status: row.status || 'pending', createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now() };
+  state.friendRequests = state.friendRequests.filter(r => r.id !== req.id);
   state.friendRequests.push(req);
-
-  state.notifications.unshift({
-    id: uid('notif'),
-    type: 'friend_request',
-    fromId: me.id,
-    text: `${me.displayName} enviou uma solicitação de amizade.`,
-    read: false,
-    createdAt: Date.now(),
-    targetUserId: target.id,
-  });
-
-  persist(['friendRequests', 'notifications']);
+  notify();
   return req;
 }
 
-export function acceptFriendRequest(reqId) {
-  const req = state.friendRequests.find(r => r.id === reqId);
-  if (!req || req.status !== 'pending') return;
+export async function acceptFriendRequest(reqId) {
+  const me = getCurrentUser();
+  if (!me) throw new Error('Você precisa estar conectado.');
+  const req = state.friendRequests.find(r => r.id === reqId && r.toId === me.id && r.status === 'pending');
+  if (!req) throw new Error('Esta solicitação não está mais disponível. Atualize a página e tente novamente.');
+  const { data, error } = await supabase.rpc('respond_friend_request', { p_request_id: reqId, p_accept: true });
+  if (error) throw new Error(error.message || 'Não foi possível aceitar a solicitação.');
   req.status = 'accepted';
-
+  if (!state.friends[me.id]) state.friends[me.id] = [];
   if (!state.friends[req.fromId]) state.friends[req.fromId] = [];
-  if (!state.friends[req.toId]) state.friends[req.toId] = [];
-  state.friends[req.fromId].push(req.toId);
-  state.friends[req.toId].push(req.fromId);
-
-  // Auto-create DM conversation
+  if (!state.friends[me.id].includes(req.fromId)) state.friends[me.id].push(req.fromId);
+  if (!state.friends[req.fromId].includes(me.id)) state.friends[req.fromId].push(me.id);
   const convId = getOrCreateDm(req.fromId, req.toId);
-
-  state.notifications.unshift({
-    id: uid('notif'),
-    type: 'friend_accept',
-    fromId: req.toId,
-    text: `${state.users[req.toId]?.displayName} aceitou sua solicitação!`,
-    read: false,
-    createdAt: Date.now(),
-    targetUserId: req.fromId,
-  });
-
-  persist(['friendRequests', 'friends', 'conversations', 'notifications']);
+  notify();
   return convId;
 }
 
-export function declineFriendRequest(reqId) {
-  const req = state.friendRequests.find(r => r.id === reqId);
-  if (req) req.status = 'declined';
-  persist(['friendRequests']);
+export async function declineFriendRequest(reqId) {
+  const me = getCurrentUser();
+  if (!me) throw new Error('Você precisa estar conectado.');
+  const req = state.friendRequests.find(r => r.id === reqId && r.toId === me.id && r.status === 'pending');
+  if (!req) throw new Error('Esta solicitação não está mais disponível.');
+  const { error } = await supabase.rpc('respond_friend_request', { p_request_id: reqId, p_accept: false });
+  if (error) throw new Error(error.message || 'Não foi possível recusar a solicitação.');
+  req.status = 'declined';
+  notify();
 }
 
-export function removeFriend(friendId) {
+export async function removeFriend(friendId) {
   const me = getCurrentUser();
+  if (!me) throw new Error('Você precisa estar conectado.');
+  const { error } = await supabase.rpc('remove_friend', { p_friend_id: friendId });
+  if (error) throw new Error(error.message || 'Não foi possível remover o amigo.');
   state.friends[me.id] = (state.friends[me.id] || []).filter(id => id !== friendId);
   state.friends[friendId] = (state.friends[friendId] || []).filter(id => id !== me.id);
-  persist(['friends']);
+  notify();
 }
 
 export function getFriends(userId) {
